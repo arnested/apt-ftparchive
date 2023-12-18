@@ -1,0 +1,9 @@
+---
+extends: default
+
+rules:
+  indentation:
+    spaces: 2
+  line-length: disable
+  truthy:
+    check-keys: false
