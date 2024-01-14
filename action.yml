@@ -1,0 +1,36 @@
+---
+name: 'APT FTPArchive'
+description: 'Builds an APT repository from a directory of packages.'
+inputs:
+  input-directory:
+    description: 'Where to find the packages to include in the repository.'
+    required: false
+    default: 'dist'
+  gpg-signing-key:
+    description: 'The GPG key to sign the repository with.'
+    required: true
+outputs:
+  output-directory:
+    description: 'Output directory for the repository.'
+    value: ${{ runner.temp }}/apt-${{ github.run_id }}
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Import GPG-key'
+      shell: 'bash'
+      run: |
+        gpg --import --no-tty --batch --yes <<<"${{ inputs.gpg-signing-key }}"
+    - name: 'Add .deb''s to APT repository'
+      shell: 'bash'
+      run: |
+        find "${{ inputs.input-directory }}" -name \*.deb -printf '%P\0' | cpio -D "${{ inputs.input-directory }}" -pvd0 "${{ runner.temp }}/apt-${{ github.run_id }}"
+    - name: 'Build APT repository'
+      shell: 'bash'
+      working-directory: ${{ runner.temp }}/apt-${{ github.run_id }}
+      run: |
+        apt-ftparchive packages . > Packages
+        gzip -k -f Packages
+        apt-ftparchive release . > Release
+        gpg --version
+        gpg -abs --verbose --verbose --no-tty --batch --yes -o Release.gpg Release
+        gpg --clearsign --no-tty --batch --yes -o InRelease Release
